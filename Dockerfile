@@ -1,12 +1,16 @@
 FROM python:3.11-slim
 
-# Install ffmpeg
+# Install ffmpeg and dependencies
 RUN apt-get update && apt-get install -y ffmpeg
 
-# Install dependencies
+# Set workdir
 WORKDIR /app
+
+# Copy source code
 COPY . /app
+
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Jalankan FastAPI dengan Uvicorn
+# Run the app
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
