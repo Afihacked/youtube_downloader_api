@@ -18,15 +18,20 @@ def download_video(url: str = Query(...), format: str = Query("mp4")):
     filename = f"{uuid.uuid4()}.{format}"
     filepath = os.path.join(DOWNLOAD_DIR, filename)
 
-    ydl_opts = {
-        'outtmpl': filepath,
-        'format': 'bestaudio/best' if format == "mp3" else 'bestvideo+bestaudio/best',
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }] if format == "mp3" else [],
-    }
+    if format == "mp3":
+        # Download audio langsung tanpa ffmpeg
+        ydl_opts = {
+            'outtmpl': filepath,
+            'format': 'bestaudio[ext=m4a]/bestaudio/best',
+            'postprocessors': [],  # ffmpeg akan kita hindari
+        }
+    else:
+        # Untuk video biasa
+        ydl_opts = {
+            'outtmpl': filepath,
+            'format': 'best',
+            'postprocessors': []
+        }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
