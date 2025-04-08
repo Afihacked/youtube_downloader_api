@@ -3,11 +3,15 @@ from fastapi.responses import FileResponse
 import yt_dlp
 import uuid
 import os
+import shutil
 
 app = FastAPI()
 
 DOWNLOAD_DIR = "downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+
+# Lokasi ffmpeg (pastikan terinstall di sistem Docker)
+FFMPEG_PATH = shutil.which("ffmpeg")
 
 @app.get("/")
 def root():
@@ -18,28 +22,15 @@ def download_video(url: str = Query(...), format: str = Query("mp4")):
     filename = f"{uuid.uuid4()}.{format}"
     filepath = os.path.join(DOWNLOAD_DIR, filename)
 
-    # Opsi untuk MP3
-    if format == "mp3":
-        ydl_opts = {
-            'format': 'bestaudio',
-            'outtmpl': filepath,
-            'postprocessors': [
-                {
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                }
-            ],
-            'ffmpeg_location': '/usr/bin/ffmpeg',  # lokasi umum ffmpeg di image
-        }
-    else:
-        # Opsi untuk video (mp4)
-        ydl_opts = {
-            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-            'outtmpl': filepath,
-            'merge_output_format': 'mp4',
-            'ffmpeg_location': '/usr/bin/ffmpeg',
-        }
+    ydl_opts = {
+        'outtmpl': filepath,
+        'format': 'bestaudio/best' if format == "mp3" else 'best',
+        'ffmpeg_location': FFMPEG_PATH,  # <-- lokasi ffmpeg untuk proses mp3
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+        }] if format == "mp3" else []
+    }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
