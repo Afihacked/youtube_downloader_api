@@ -20,11 +20,12 @@ def download_video(url: str = Query(...), format: str = Query("mp4")):
 
     ydl_opts = {
         'outtmpl': filepath,
-        'format': 'bestaudio/best' if format == "mp3" else 'best',
+        'format': 'bestaudio/best' if format == "mp3" else 'bestvideo+bestaudio/best',
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
-        }] if format == "mp3" else []
+            'preferredquality': '192',
+        }] if format == "mp3" else [],
     }
 
     try:
