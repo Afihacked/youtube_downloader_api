@@ -1,3 +1,21 @@
+from fastapi import FastAPI, Query
+from fastapi.responses import FileResponse
+import yt_dlp
+import uuid
+import os
+import shutil
+
+app = FastAPI()
+
+DOWNLOAD_DIR = "downloads"
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+
+FFMPEG_PATH = shutil.which("ffmpeg")  # Lokasi ffmpeg
+
+@app.get("/")
+def root():
+    return {"message": "YouTube Downloader API is running"}
+
 @app.get("/download")
 def download_video(url: str = Query(...), format: str = Query("mp4")):
     file_id = str(uuid.uuid4())
