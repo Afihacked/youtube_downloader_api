@@ -25,19 +25,21 @@ def download_video(url: str = Query(...), format: str = Query("mp4")):
         'outtmpl': outtmpl,
         'format': 'bestaudio/best' if format == "mp3" else 'bestvideo+bestaudio/best',
         'ffmpeg_location': FFMPEG_PATH,
-        'merge_output_format': format,  # Paksa output ke .mp4
+        'merge_output_format': format,
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
             'preferredquality': '192',
-        }] if format == "mp3" else []
+        }] if format == "mp3" else [],
+        'socket_timeout': 3600,  # Timeout koneksi sampai 1 jam
+        'noplaylist': True       # Hindari download playlist
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
-        # Cari file hasil download (cocokkan ekstensi yang benar)
+        # Cari file hasil download
         for file in os.listdir(DOWNLOAD_DIR):
             if file.startswith(file_id) and file.endswith(f".{format}"):
                 filepath = os.path.join(DOWNLOAD_DIR, file)
