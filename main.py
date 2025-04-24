@@ -31,8 +31,6 @@ def download_video(url: str = Query(...), format: str = Query("mp4")):
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }] if format == "mp3" else []
-        'socket_timeout': 3600,  # 1 jam timeout koneksi
-        'noplaylist': True,
     }
 
     try:
