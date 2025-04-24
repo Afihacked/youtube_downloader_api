@@ -12,8 +12,8 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 FFMPEG_PATH = shutil.which("ffmpeg")  # Lokasi ffmpeg
 
-# Path untuk file cookies
-COOKIES_PATH = "cookies.json"  # Ganti dengan path yang sesuai jika berada di lokasi berbeda
+# Path untuk file cookies (gunakan format Netscape: .txt, bukan JSON)
+COOKIES_PATH = os.path.join(os.path.dirname(__file__), "cookies.txt")
 
 @app.get("/")
 def root():
@@ -24,7 +24,6 @@ def download_video(url: str = Query(...), format: str = Query("mp4")):
     file_id = str(uuid.uuid4())
     outtmpl = os.path.join(DOWNLOAD_DIR, f"{file_id}.%(ext)s")
 
-    # Menambahkan cookies ke dalam opsi download
     ydl_opts = {
         'outtmpl': outtmpl,
         'format': 'bestaudio/best' if format == "mp3" else 'bestvideo+bestaudio/best',
@@ -35,16 +34,15 @@ def download_video(url: str = Query(...), format: str = Query("mp4")):
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }] if format == "mp3" else [],
-        'socket_timeout': 3600,  # Timeout koneksi sampai 1 jam
-        'noplaylist': True,      # Hindari download playlist
-        'cookies': COOKIES_PATH  # Menambahkan file cookies untuk menghindari masalah login
+        'socket_timeout': 3600,
+        'noplaylist': True,
+        'cookiefile': COOKIES_PATH  # Pastikan file cookies.txt format Netscape
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
-        # Cari file hasil download
         for file in os.listdir(DOWNLOAD_DIR):
             if file.startswith(file_id) and file.endswith(f".{format}"):
                 filepath = os.path.join(DOWNLOAD_DIR, file)
