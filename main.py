@@ -17,7 +17,7 @@ def root():
     return {"message": "YouTube Downloader API is running"}
 
 @app.get("/download")
-def download_video(url: str = Query(...), format: str = Query("mp4"), background_tasks: BackgroundTasks):
+def download_video(background_tasks: BackgroundTasks, url: str = Query(...), format: str = Query("mp4")):
     file_id = str(uuid.uuid4())
     outtmpl = os.path.join(DOWNLOAD_DIR, f"{file_id}.%(ext)s")
 
