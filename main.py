@@ -15,7 +15,7 @@ FFMPEG_PATH = shutil.which("ffmpeg")  # Lokasi ffmpeg
 @app.get("/")
 def root():
     return {"message": "YouTube Downloader API is running"}
-
+    
 @app.get("/download")
 def download_video(url: str = Query(...), format: str = Query("mp4")):
     file_id = str(uuid.uuid4())
@@ -25,7 +25,9 @@ def download_video(url: str = Query(...), format: str = Query("mp4")):
         'outtmpl': outtmpl,
         'format': 'bestaudio/best' if format == "mp3" else 'bestvideo+bestaudio/best',
         'ffmpeg_location': FFMPEG_PATH,
-        'merge_output_format': format,  # Paksa output ke .mp4
+        'merge_output_format': format,
+        'socket_timeout': 3600,
+        'noplaylist': True,
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
@@ -35,14 +37,22 @@ def download_video(url: str = Query(...), format: str = Query("mp4")):
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+            info_dict = ydl.extract_info(url, download=True)
+            final_filename = ydl.prepare_filename(info_dict)
 
-        # Cari file hasil download (cocokkan ekstensi yang benar)
-        for file in os.listdir(DOWNLOAD_DIR):
-            if file.startswith(file_id) and file.endswith(f".{format}"):
-                filepath = os.path.join(DOWNLOAD_DIR, file)
-                return FileResponse(filepath, media_type="application/octet-stream", filename=file)
+            # Cek jika file sudah berubah menjadi .mp4/mp3
+            if format == "mp4" and not final_filename.endswith(".mp4"):
+                final_filename = os.path.splitext(final_filename)[0] + ".mp4"
+            elif format == "mp3" and not final_filename.endswith(".mp3"):
+                final_filename = os.path.splitext(final_filename)[0] + ".mp3"
 
-        return {"error": f"File .{format} tidak ditemukan setelah download"}
+        if os.path.exists(final_filename):
+            return FileResponse(
+                final_filename,
+                media_type="application/octet-stream",
+                filename=os.path.basename(final_filename)
+            )
+        else:
+            return {"error": f"File hasil tidak ditemukan: {final_filename}"}
     except Exception as e:
         return {"error": f"Gagal mengunduh: {str(e)}"}
