@@ -12,6 +12,9 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 FFMPEG_PATH = shutil.which("ffmpeg")  # Lokasi ffmpeg
 
+# Path untuk file cookies
+COOKIES_PATH = "cookies.json"  # Ganti dengan path yang sesuai jika berada di lokasi berbeda
+
 @app.get("/")
 def root():
     return {"message": "YouTube Downloader API is running"}
@@ -21,6 +24,7 @@ def download_video(url: str = Query(...), format: str = Query("mp4")):
     file_id = str(uuid.uuid4())
     outtmpl = os.path.join(DOWNLOAD_DIR, f"{file_id}.%(ext)s")
 
+    # Menambahkan cookies ke dalam opsi download
     ydl_opts = {
         'outtmpl': outtmpl,
         'format': 'bestaudio/best' if format == "mp3" else 'bestvideo+bestaudio/best',
@@ -32,7 +36,8 @@ def download_video(url: str = Query(...), format: str = Query("mp4")):
             'preferredquality': '192',
         }] if format == "mp3" else [],
         'socket_timeout': 3600,  # Timeout koneksi sampai 1 jam
-        'noplaylist': True       # Hindari download playlist
+        'noplaylist': True,      # Hindari download playlist
+        'cookies': COOKIES_PATH  # Menambahkan file cookies untuk menghindari masalah login
     }
 
     try:
