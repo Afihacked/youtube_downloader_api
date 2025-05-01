@@ -1,10 +1,9 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, BackgroundTasks
 from fastapi.responses import FileResponse
 import yt_dlp
 import uuid
 import os
 import shutil
-import threading
 from datetime import datetime
 
 app = FastAPI()
@@ -17,6 +16,13 @@ FFMPEG_PATH = shutil.which("ffmpeg")
 COOKIES_PATH = os.path.join(os.path.dirname(__file__), "cookies.txt")
 
 
+def cleanup_dir(path: str):
+    try:
+        shutil.rmtree(path)
+    except Exception as e:
+        print(f"Gagal hapus folder: {path} | Error: {e}")
+
+
 @app.get("/")
 def root():
     return {"message": "YouTube Downloader API is running"}
@@ -24,6 +30,7 @@ def root():
 
 @app.get("/download")
 def download_video(
+    background_tasks: BackgroundTasks,
     url: str = Query(...),
     format: str = Query("mp4"),
     start: str = Query(None, description="Start time in HH:MM:SS or MM:SS"),
@@ -66,18 +73,14 @@ def download_video(
                 with open(LOG_FILE, "a", encoding="utf-8") as log_file:
                     log_file.write(f"{datetime.now().isoformat()} | {url} | {format} | {file}\n")
 
-                # 🧹 Cleanup setelah pengiriman
-                def cleanup(path):
-                    try:
-                        shutil.rmtree(path)
-                    except Exception as e:
-                        print(f"Gagal hapus folder: {path} | Error: {e}")
+                # ✅ Tambah tugas background untuk hapus folder
+                background_tasks.add_task(cleanup_dir, download_dir)
 
                 return FileResponse(
                     filepath,
                     media_type="application/octet-stream",
                     filename=file,
-                    background=threading.Thread(target=cleanup, args=(download_dir,))
+                    background=background_tasks
                 )
 
         return {"error": f"File .{format} tidak ditemukan setelah download"}
