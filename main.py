@@ -4,25 +4,37 @@ import yt_dlp
 import uuid
 import os
 import shutil
+import threading
+from datetime import datetime
 
 app = FastAPI()
 
-DOWNLOAD_DIR = "downloads"
-os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+BASE_DOWNLOAD_DIR = "downloads"
+os.makedirs(BASE_DOWNLOAD_DIR, exist_ok=True)
 
-FFMPEG_PATH = shutil.which("ffmpeg")  # Lokasi ffmpeg
-
-# Path untuk file cookies (gunakan format Netscape: .txt, bukan JSON)
+LOG_FILE = "download_logs.txt"
+FFMPEG_PATH = shutil.which("ffmpeg")
 COOKIES_PATH = os.path.join(os.path.dirname(__file__), "cookies.txt")
+
 
 @app.get("/")
 def root():
     return {"message": "YouTube Downloader API is running"}
 
+
 @app.get("/download")
-def download_video(url: str = Query(...), format: str = Query("mp4")):
-    file_id = str(uuid.uuid4())
-    outtmpl = os.path.join(DOWNLOAD_DIR, f"{file_id}.%(ext)s")
+def download_video(
+    url: str = Query(...),
+    format: str = Query("mp4"),
+    start: str = Query(None, description="Start time in HH:MM:SS or MM:SS"),
+    end: str = Query(None, description="End time in HH:MM:SS or MM:SS"),
+):
+    session_id = str(uuid.uuid4())
+    download_dir = os.path.join(BASE_DOWNLOAD_DIR, session_id)
+    os.makedirs(download_dir, exist_ok=True)
+
+    outtmpl = os.path.join(download_dir, f"{session_id}.%(ext)s")
+    download_sections = f"*{start}-{end}" if start and end else None
 
     ydl_opts = {
         'outtmpl': outtmpl,
@@ -36,18 +48,39 @@ def download_video(url: str = Query(...), format: str = Query("mp4")):
         }] if format == "mp3" else [],
         'socket_timeout': 3600,
         'noplaylist': True,
-        'cookiefile': COOKIES_PATH  # Pastikan file cookies.txt format Netscape
+        'cookiefile': COOKIES_PATH
     }
+
+    if download_sections:
+        ydl_opts['download_sections'] = download_sections
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
-        for file in os.listdir(DOWNLOAD_DIR):
-            if file.startswith(file_id) and file.endswith(f".{format}"):
-                filepath = os.path.join(DOWNLOAD_DIR, file)
-                return FileResponse(filepath, media_type="application/octet-stream", filename=file)
+        for file in os.listdir(download_dir):
+            if file.startswith(session_id) and file.endswith(f".{format}"):
+                filepath = os.path.join(download_dir, file)
+
+                # ✅ Tulis log download
+                with open(LOG_FILE, "a", encoding="utf-8") as log_file:
+                    log_file.write(f"{datetime.now().isoformat()} | {url} | {format} | {file}\n")
+
+                # 🧹 Cleanup setelah pengiriman
+                def cleanup(path):
+                    try:
+                        shutil.rmtree(path)
+                    except Exception as e:
+                        print(f"Gagal hapus folder: {path} | Error: {e}")
+
+                return FileResponse(
+                    filepath,
+                    media_type="application/octet-stream",
+                    filename=file,
+                    background=threading.Thread(target=cleanup, args=(download_dir,))
+                )
 
         return {"error": f"File .{format} tidak ditemukan setelah download"}
     except Exception as e:
+        shutil.rmtree(download_dir, ignore_errors=True)
         return {"error": f"Gagal mengunduh: {str(e)}"}
