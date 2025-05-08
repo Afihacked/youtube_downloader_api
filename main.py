@@ -87,3 +87,37 @@ def download_video(
     except Exception as e:
         shutil.rmtree(download_dir, ignore_errors=True)
         return {"error": f"Gagal mengunduh: {str(e)}"}
+
+@app.get("/info")
+def video_info(url: str = Query(...), format: str = Query("mp4")):
+    ydl_opts = {
+        'quiet': True,
+        'skip_download': True,
+        'simulate': True,
+        'forcejson': True,
+        'format': 'bestaudio/best' if format == "mp3" else 'bestvideo+bestaudio/best',
+        'cookiefile': COOKIES_PATH
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            title = info.get('title', 'Tidak diketahui')
+            filesize = 0
+
+            # Coba ambil ukuran file dari entry format
+            formats = info.get('formats', [])
+            if formats:
+                best_format = max(
+                    formats,
+                    key=lambda f: f.get('filesize', 0) or f.get('filesize_approx', 0)
+                )
+                filesize = best_format.get('filesize') or best_format.get('filesize_approx', 0)
+
+            return {
+                "title": title,
+                "filesize": filesize
+            }
+    except Exception as e:
+        return {"error": f"Gagal mengambil info video: {str(e)}"}
+
