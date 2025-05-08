@@ -108,11 +108,19 @@ def video_info(url: str = Query(...), format: str = Query("mp4")):
             # Coba ambil ukuran file dari entry format
             formats = info.get('formats', [])
             if formats:
-                best_format = max(
-                    formats,
-                    key=lambda f: f.get('filesize', 0) or f.get('filesize_approx', 0)
-                )
-                filesize = best_format.get('filesize') or best_format.get('filesize_approx', 0)
+                # Filter formats untuk hanya yang memiliki filesize atau filesize_approx yang valid
+                valid_formats = [
+                    f for f in formats
+                    if f.get('filesize') is not None or f.get('filesize_approx') is not None
+                ]
+
+                if valid_formats:
+                    # Pilih format dengan filesize terbesar
+                    best_format = max(
+                        valid_formats,
+                        key=lambda f: (f.get('filesize', 0) or f.get('filesize_approx', 0))
+                    )
+                    filesize = best_format.get('filesize') or best_format.get('filesize_approx', 0)
 
             return {
                 "title": title,
@@ -120,4 +128,5 @@ def video_info(url: str = Query(...), format: str = Query("mp4")):
             }
     except Exception as e:
         return {"error": f"Gagal mengambil info video: {str(e)}"}
+
 
